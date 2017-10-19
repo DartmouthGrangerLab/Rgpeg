@@ -17,13 +17,14 @@ Prepare CalTech256 images with ImageMagick using:
 import numpy as np
 np.set_printoptions(suppress=True)
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import os
 import itertools
 import PIL.Image as img
 
 from library import get_inner_region, compute_adjacency
 from metric import MultivariateNormalMetric
-from figurecode import plot_basis_ndim, plot_summary_results, plot_final_results
+from figurecode import plot_basis_ndim, plot_summary_results, plot_final_results, plot_summary_results_movie
 from jpeg import get_Q, jpeg_encode_decode
 from rgpeg import rgpeg_encode_decode, get_hamiltonian_for_dct, get_jacobian_feature_to_physical
 
@@ -95,7 +96,7 @@ def rrms(data1,data2,m):
 ############################
 
 class TestCompression():
-    def __init__(self,screen_pixel_size=0.282,viewing_distance=24.0,dx=1000.0, dy=100.0, dpi=600,process_all=False,save_figs=True,error_match_results=True,full_basis=False,results_fmt='pdf',results_dir='results/'):
+    def __init__(self,screen_pixel_size=0.282,viewing_distance=24.0,dx=1000.0, dy=100.0, dpi=600,process_all=False,save_figs=True,error_match_results=True,full_basis=False,results_fmt='pdf',results_dir='results/',save_movie=False,movie_direction=-1):
         self.img_width = 8
         self.img_height = 8
     
@@ -111,7 +112,9 @@ class TestCompression():
         self.full_basis = full_basis
         self.results_dir = results_dir
         self.results_fmt = results_fmt
-        
+        self.save_movie = save_movie
+        self.movie_direction = movie_direction
+
     def process(self, dnames=['images/'], stepsize=10):
         jpg_roc_err = list()
         jpg_roc_ent = list()
@@ -287,20 +290,42 @@ class TestCompression():
             plot_basis_ndim(V.T,ax=plt.gca())
             fig.savefig(save_fname[:-4]+'-basis.'+self.results_fmt, format=self.results_fmt,dpi=self.dpi, bbox_inches='tight')
             plt.close(fig)
+
+        if self.save_movie:
+            fig = plt.figure(dpi=self.dpi,figsize=(11,6.5))
+            metadata = dict(title='RGPEG '+save_fname[:-4]+'-movie.mp4', artist='RGPEG',
+                            comment='RGPEG')
+            writer = animation.ImageMagickFileWriter(fps=1, metadata=metadata)
+            mwriter = animation.FFMpegWriter(fps=1, metadata=metadata)
+            with mwriter.saving(fig, save_fname[:-4]+'-movie.' + 'mp4', 300):
+                for i in range(num_levels)[::self.movie_direction]:
+                    j = i
+                    if i > 0:
+                        jidx = np.argwhere(ent_rgpeg <= ent_jpg[i])
+                        if jidx.size > 0:
+                            j = jidx[0,0]
+                    lvl = levels[i]
+                    print 'Saving movie frame for level:', lvl
+                    plot_summary_results_movie(imgOrig, self.img_width, self.img_height, decompImgRGPEG, decompImgJPEG, err_rgpeg, ent_rgpeg, err_jpg, ent_jpg, fig=fig, timeslice=levels, Phi_slices=encodedResultsRGPEG, jpg_dct_slices=encodedResultsJPEG, levels=levels, jpg_i=i, rgpeg_i=j)
+                    writer.setup(fig, save_fname[:-4]+'-'+'{:03}'.format(lvl)+'.png', self.dpi)
+                    writer.grab_frame()
+                    #writer.cleanup()
+                    writer.finish()
+                    mwriter.grab_frame()
+    
         return err_rgpeg, ent_rgpeg, err_jpg, ent_jpg
 
 
 #run from here to generate figures
-def main(dnames=['images/Faces10small3/'], screen_pixel_size=0.282, viewing_distance=24.0, dx=50000.0, dy=25000.0, dpi=600, process_all=True, save_figs=True, stepsize=1, error_match_results=True, full_basis=False, results_fmt='pdf', results_dir='results/'):
+def main(dnames=['images/Faces10small3/'], screen_pixel_size=0.282, viewing_distance=24.0, dx=50000.0, dy=25000.0, dpi=600, process_all=True, save_figs=True, stepsize=1, error_match_results=True, full_basis=False, results_fmt='pdf', results_dir='results/', save_movie=False, movie_direction=-1):
     print 'Procesing: ',dnames
     print 'ScreenPixelSize: ', screen_pixel_size
     print 'ViewingDistance: ', viewing_distance
     print 'dx: ',dx
     print 'dy: ',dy
-    t = TestCompression(screen_pixel_size, viewing_distance, dx, dy, dpi, process_all, save_figs, error_match_results, full_basis, results_fmt, results_dir)
+    t = TestCompression(screen_pixel_size, viewing_distance, dx, dy, dpi, process_all, save_figs, error_match_results, full_basis, results_fmt, results_dir, save_movie=save_movie, movie_direction=movie_direction)
     t.process(stepsize=stepsize, dnames=dnames)
 
-        
 if __name__ == "__main__":
     main()
 

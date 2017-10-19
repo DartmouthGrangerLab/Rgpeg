@@ -227,4 +227,114 @@ def plot_basis_ndim(basis, title='Basis plot', pp=None, vmin=0, vmax=255, ax=Non
         plt.show()
     elif pp is not None:
         pp.savefig(fig)
-        
+
+
+def plot_summary_results_movie(img, img_width, img_height, decomp_img_slices,decomp_img_jpg,err_rgpeg,ent_rgpeg,err_jpg,ent_jpg,title='Rmn. Comp.',fig=None,timeslice=0,Phi_slices=None,jpg_dct_slices=None,levels=0,jpg_i=None,rgpeg_i=None):
+    ent_color = '#328db8'
+    err_color = '#ad59ab'
+    plt.rcParams.update({'axes.titlesize': 'small'})
+    plt.rcParams.update({'axes.labelsize': 'small'})
+    plt.rcParams.update({'xtick.labelsize': 'x-small'})
+    plt.rcParams.update({'ytick.labelsize': 'x-small'})   
+
+    fig.clear()
+
+    method_sym = ['J','R']
+    j_err_marker = '*'
+    j_ent_marker = 'd'
+    r_err_marker = 'H'
+    r_ent_marker = '^'
+    mfc = ['blue','green','yellow','orange']
+    gs = gridspec.GridSpec(1, 6,left=0.05, bottom=0.42, right=0.95, top=0.97, wspace=0.0, hspace=0.0, width_ratios=[16,8,16,8,1,1], height_ratios=None)
+    q = 0
+    i = jpg_i
+    for method in range(2):
+        if method == 0:
+            method_data = decomp_img_jpg
+            dct_data = jpg_dct_slices
+            err = 'er='+'{:.4}'.format(err_jpg[i])
+            ent = 'en='+'{:.4}'.format(ent_jpg[i])
+            err_marker = j_err_marker
+            ent_marker = j_ent_marker
+            idx = i
+        else:
+            method_data = decomp_img_slices
+            dct_data = Phi_slices
+            err = 'er='+'{:.4}'.format(err_rgpeg[rgpeg_i])
+            ent = 'en='+'{:.4}'.format(ent_rgpeg[rgpeg_i])
+            err_marker = r_err_marker
+            ent_marker = r_ent_marker
+            idx = rgpeg_i
+        ax3a = plt.subplot(gs[0, 2*method])
+        ax3a.set_aspect('auto')
+
+        plot_data(method_data[:,:,idx],ax=ax3a, img_width=img_width, img_height=img_height)
+        blue_line = mlines.Line2D([], [], color='none', mfc=mfc[q], marker=err_marker,markersize=15, label=err)
+        green_line = mlines.Line2D([], [], color='none', mfc=mfc[q], marker=ent_marker,markersize=15, label=ent)
+        plt.legend(handles=[blue_line,green_line],numpoints=1,bbox_to_anchor=(0.1, 0.0, 0.8, -0.05), loc=2,ncol=4, mode="expand", borderaxespad=0.0, borderpad=0.0, fontsize='small',markerscale=0.5,frameon=False, handletextpad=0.0)
+        ax3a.yaxis.set_tick_params(size=0)
+        ax3a.xaxis.set_tick_params(size=0)
+        plt.setp(ax3a.get_yticklabels(), visible=False)
+        plt.setp(ax3a.get_xticklabels(), visible=False)          
+
+        ax3a = plt.subplot(gs[0, 1+method*2])
+        ax3a.set_aspect('auto')
+        ax3a.set_title(method_sym[method] + '\n' + str(100-jpg_i))
+        ax3a.yaxis.set_tick_params(size=0)
+        ax3a.xaxis.set_tick_params(size=0)
+        plt.setp(ax3a.get_yticklabels(), visible=False)
+        plt.setp(ax3a.get_xticklabels(), visible=False)
+        if method == 1:
+            show_colorbar = True
+            cb_ax = plt.subplot(gs[0, -1])
+        else:
+            show_colorbar = False
+            cb_ax = None
+        plot_data(dct_data[:,:,idx],ax=ax3a, cb_ax=cb_ax, cmap='Reds',dctdata=True,show_colorbar=show_colorbar,vmin=-127,vmax=128, img_width=img_width, img_height=img_height)
+
+    gs = gridspec.GridSpec(1, 2,left=0.05, bottom=0.07, right=0.96, top=0.37, wspace=0.1, hspace=0.0, width_ratios=[2,3], height_ratios=None)
+    ax5 = fig.add_subplot(gs[0,0])
+    plt.plot(err_jpg,ent_jpg,'ks',label='J',markersize=2)
+
+    plt.plot(err_rgpeg,ent_rgpeg,'ko',label='R',markersize=2)
+    plt.plot(err_jpg[i],ent_jpg[i],mfc=mfc[q],marker='s',markersize=10.0)
+    plt.plot(err_rgpeg[rgpeg_i],ent_rgpeg[rgpeg_i],mfc=mfc[q],marker='o',markersize=10.0)
+
+    plt.legend(fontsize='x-small')
+    plt.xlabel('error (rRMS)')
+    plt.ylabel('entropy (bits/pixel)')
+    axes = plt.gca()
+
+    xmax = 2.0
+    #xmax = 0.5
+    ymax = 3.0
+    axes.set_xlim([0,xmax])
+    axes.set_ylim([0,ymax])
+
+    #font = {'family' : 'normal',
+    #        'weight' : 'bold',
+    #        'size'   : 8}
+    font = { 'size'   : 8}
+    #ax5.text(1.5,0.5,'ROC',fontsize=8)
+    ax5.set_title('ROC',fontdict=font)
+
+    host = host_subplot(gs[0,1], axes_class=AA.Axes)
+    par1 = host.twinx()
+    host.plot(timeslice,ent_jpg,linestyle=':',color=ent_color,linewidth=2,zorder=0)
+    host.plot(timeslice,ent_rgpeg,linestyle='-',color=ent_color,linewidth=2,zorder=0)
+    host.plot(timeslice[i],ent_jpg[i],mfc=mfc[q],marker=j_ent_marker,markersize=10.0,zorder=1)
+    host.plot(timeslice[rgpeg_i],ent_rgpeg[rgpeg_i],mfc=mfc[q],marker=r_ent_marker,markersize=10.0,zorder=1)
+
+    par1.plot(timeslice,err_jpg,linestyle=':',color=err_color,linewidth=2,zorder=0)
+    par1.plot(timeslice,err_rgpeg,linestyle='-',color=err_color,linewidth=2,zorder=0)
+    par1.plot(timeslice[i],err_jpg[i],mfc=mfc[q],marker=j_err_marker,markersize=10.0,zorder=1)
+    par1.plot(timeslice[rgpeg_i],err_rgpeg[rgpeg_i],mfc=mfc[q],marker=r_err_marker,markersize=10.0,zorder=1)
+    #plt.legend()
+    host.set_xlabel('quality')
+    host.set_ylabel('entropy (bits/pixel)',color=ent_color)
+    par1.set_ylabel('error (rRMS)',color=err_color)
+    host.set_title('Entropy and Error vs Quality',fontdict=font)
+    plt.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=0, hspace=0)
+
+
+
